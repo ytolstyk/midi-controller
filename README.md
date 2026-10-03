@@ -55,3 +55,12 @@ The header shows *Keys active* or *Click this window to activate keys*.
 - The quit confirmation blocks until answered; Activity Monitor is the last resort for a backgrounded app.
 
 Bindings live in `~/Library/Application Support/midi-controller/bindings.json` (a `.bak` of the previous save is kept).
+
+## Global keys (any app)
+
+Turn on **Global keys** in the header to play without focusing the window. It uses a system-wide key listener, so macOS asks for **Accessibility** permission (System Settings → Privacy & Security → Accessibility). It is off until you turn it on, and the setting is remembered. **Ctrl+Alt+Cmd+K** toggles it from anywhere.
+
+- Only the bound keys (A–Z, 0–9, arrows) are looked at, and only without Cmd/Ctrl/Alt/Shift. Nothing else is read, stored or logged.
+- The keys still reach the app you're typing in, so turn capture off when you type elsewhere.
+- While it's on, the bound keys you press in **any** app are sent as MIDI on the "Key Controller" port, which other apps on this Mac (or a network MIDI session) can read. Don't use bound keys for passwords while it's on.
+- Reinstalling can reset the permission (the app is ad-hoc signed): remove and re-add it in the Accessibility list.

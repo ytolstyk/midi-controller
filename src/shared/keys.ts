@@ -29,3 +29,7 @@ export function keyCaption(code: string): string {
       return code
   }
 }
+
+/** OS-wide shortcut that toggles global key capture: Electron accelerator and its on-screen form. */
+export const GLOBAL_TOGGLE_ACCELERATOR = 'Control+Alt+Command+K'
+export const GLOBAL_TOGGLE_HINT = 'Ctrl+Alt+Cmd+K'

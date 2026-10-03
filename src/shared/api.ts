@@ -1,4 +1,4 @@
-import type { Binding, LoadResult, PanicResult, SaveResult, StatusSnapshot } from './types'
+import type { Binding, GlobalStatus, LoadResult, PanicResult, SaveResult, StatusSnapshot } from './types'
 
 /** Surface exposed to the renderer via contextBridge as `window.api`. */
 export interface Api {
@@ -15,4 +15,9 @@ export interface Api {
   getStatus(): Promise<StatusSnapshot>
   /** Subscribe to status pushes; returns an unsubscribe function. */
   onStatus(cb: (s: StatusSnapshot) => void): () => void
+  getGlobal(): Promise<GlobalStatus>
+  setGlobal(enabled: boolean): Promise<GlobalStatus>
+  onGlobal(cb: (s: GlobalStatus) => void): () => void
+  /** Open System Settings → Privacy & Security → Accessibility. */
+  openAccessSettings(): void
 }

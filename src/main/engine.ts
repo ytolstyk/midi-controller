@@ -16,6 +16,9 @@ import {
   type ToggleState
 } from '../shared/types'
 
+/** Where a key press came from; lets releases be scoped so one source can't cut off the other's keys. */
+export type KeySource = 'window' | 'global'
+
 /** The slice of the MIDI port the engine needs; a fake in tests. */
 export interface MidiPort {
   isOpen(): boolean
@@ -61,8 +64,8 @@ export class MidiEngine {
   private bindings = new Map<string, Binding>()
   /** address -> holders currently keeping it ON */
   private ledger = new Map<string, LedgerEntry>()
-  /** momentary keys physically down, with the spec captured at keydown */
-  private held = new Map<string, Binding>()
+  /** momentary keys physically down, with the spec captured at keydown and who pressed them */
+  private held = new Map<string, { spec: Binding; source: KeySource }>()
   /** toggles currently ON, with the spec captured when they were switched on */
   private toggleSpecs = new Map<string, Binding>()
   private toggleState = new Map<string, ToggleState>()
@@ -164,13 +167,13 @@ export class MidiEngine {
 
   // ---- key events ----------------------------------------------------------
 
-  press(code: string): void {
+  press(code: string, source: KeySource = 'window'): void {
     const b = this.bindings.get(code)
     if (!b || !this.port.isOpen()) return
     switch (b.mode) {
       case 'momentary':
         if (this.held.has(code)) return
-        if (this.holdOn(code, b)) this.held.set(code, b)
+        if (this.holdOn(code, b)) this.held.set(code, { spec: b, source })
         break
       case 'toggle':
         this.flipToggle(code, b)
@@ -183,16 +186,20 @@ export class MidiEngine {
     this.emit()
   }
 
-  release(code: string): void {
-    const spec = this.held.get(code)
-    if (!spec || !this.port.isOpen()) return
-    if (this.releaseHolder(code, spec)) this.held.delete(code)
+  /** `source`: only release a key that source pressed (omit to release it whoever pressed it). */
+  release(code: string, source?: KeySource): void {
+    const entry = this.held.get(code)
+    if (!entry || (source && entry.source !== source) || !this.port.isOpen()) return
+    if (this.releaseHolder(code, entry.spec)) this.held.delete(code)
     this.emit()
   }
 
-  /** Window blur: release held momentary keys only; toggles keep their state. */
-  releaseHeld(): void {
-    for (const code of [...this.held.keys()]) this.release(code)
+  /**
+   * Release held momentary keys (toggles keep their state). Scoped to one input source so a late
+   * window-blur message can't cut off a key still held in another app.
+   */
+  releaseHeld(source?: KeySource): void {
+    for (const [code, entry] of [...this.held]) if (!source || entry.source === source) this.release(code)
   }
 
   private flipToggle(code: string, b: Binding): void {
@@ -299,9 +306,9 @@ export class MidiEngine {
       if (entry && entry.holders.size > 0) stillShared = true
     }
     const held = this.held.get(code)
-    if (held && this.releaseHolder(code, held)) {
+    if (held && this.releaseHolder(code, held.spec)) {
       this.held.delete(code)
-      check(held)
+      check(held.spec)
     }
     const tog = this.toggleSpecs.get(code)
     if (tog && this.releaseHolder(code, tog)) {

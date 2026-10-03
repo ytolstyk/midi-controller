@@ -1,17 +1,20 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Binding, StatusSnapshot } from '../../shared/types'
+import type { Binding, GlobalStatus, StatusSnapshot } from '../../shared/types'
 import { BindingEditor } from './components/BindingEditor'
 import { KeyboardView } from './components/KeyboardView'
 import { StatusBar } from './components/StatusBar'
 import { useKeyCapture } from './hooks/useKeyCapture'
 
 const INITIAL_STATUS: StatusSnapshot = { port: { state: 'lost', name: null }, toggles: {}, notice: null }
+// Starts disabled so the "needs permission" chip can't flash before the real status arrives.
+const INITIAL_GLOBAL: GlobalStatus = { enabled: false, access: 'denied', running: false }
 const FLASH_MS = 4000
 
 export function App(): JSX.Element {
   const [bindings, setBindings] = useState<Binding[]>([])
   const [status, setStatus] = useState<StatusSnapshot>(INITIAL_STATUS)
+  const [globalKeys, setGlobalKeys] = useState<GlobalStatus>(INITIAL_GLOBAL)
   const [selected, setSelected] = useState<string | null>(null)
   const [learnArmed, setLearnArmed] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
@@ -24,11 +27,16 @@ export function App(): JSX.Element {
   useEffect(() => {
     const off = window.api.onStatus(setStatus)
     void window.api.getStatus().then(setStatus)
+    const offGlobal = window.api.onGlobal(setGlobalKeys)
+    void window.api.getGlobal().then(setGlobalKeys)
     void window.api.loadBindings().then((r) => {
       setBindings(r.bindings)
       setWarnings(r.warnings)
     })
-    return off
+    return () => {
+      off()
+      offGlobal()
+    }
   }, [])
 
   // Quiet notices ("Reconnected") clear themselves; sticky ones wait for Dismiss.
@@ -45,6 +53,8 @@ export function App(): JSX.Element {
 
   const byCode = useMemo(() => new Map(bindings.map((b) => [b.code, b])), [bindings])
   const boundCodes = useMemo(() => new Set(byCode.keys()), [byCode])
+
+  const updateGlobal = useCallback((on: boolean) => void window.api.setGlobal(on).then(setGlobalKeys), [])
 
   const select = useCallback((code: string) => {
     setSelected(code)
@@ -106,6 +116,9 @@ export function App(): JSX.Element {
       <StatusBar
         status={status}
         focused={focused}
+        global={globalKeys}
+        onSetGlobal={updateGlobal}
+        onOpenAccess={window.api.openAccessSettings}
         panicMessage={panicMessage}
         onPanic={onPanic}
         onReconnect={onReconnect}

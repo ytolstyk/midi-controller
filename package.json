@@ -10,12 +10,15 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "monitor": "node tools/midi-monitor.cjs",
-    "start": "electron-vite preview"
+    "start": "electron-vite preview",
+    "package": "electron-vite build && electron-builder --mac --arm64 --dir",
+    "install-app": "tools/install.sh"
   },
   "dependencies": {
     "@julusian/midi": "^3.8.1",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "uiohook-napi": "1.5.5"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
@@ -23,9 +26,30 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "typescript": "^7.0.2",
     "vite": "^7.3.6",
     "vitest": "^5.0.3"
+  },
+  "build": {
+    "appId": "com.local.keycontroller",
+    "productName": "Key Controller",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "npmRebuild": false,
+    "mac": {
+      "category": "public.app-category.music",
+      "identity": null,
+      "target": "dir"
+    }
   }
 }

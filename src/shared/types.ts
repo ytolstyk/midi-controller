@@ -58,3 +58,12 @@ export interface SaveResult {
 export const TRIGGER_OFF_MS = 100
 
 export const PORT_BASE_NAME = 'Key Controller'
+
+/** OS-wide key capture state shown in the header. */
+export interface GlobalStatus {
+  enabled: boolean
+  /** macOS Accessibility permission, required by the OS-wide key listener. */
+  access: 'granted' | 'denied'
+  /** The listener is actually running. */
+  running: boolean
+}

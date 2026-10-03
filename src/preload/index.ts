@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { Api } from '../shared/api'
 import { IPC } from '../shared/ipc'
-import type { StatusSnapshot } from '../shared/types'
+import type { GlobalStatus, StatusSnapshot } from '../shared/types'
 
 const api: Api = {
   press: (code) => ipcRenderer.send(IPC.keyPress, code),
@@ -18,6 +18,14 @@ const api: Api = {
     const listener = (_e: unknown, s: StatusSnapshot): void => cb(s)
     ipcRenderer.on(IPC.midiStatus, listener)
     return () => ipcRenderer.removeListener(IPC.midiStatus, listener)
+  },
+  getGlobal: () => ipcRenderer.invoke(IPC.globalStatus),
+  openAccessSettings: () => ipcRenderer.send(IPC.globalOpenAccess),
+  setGlobal: (enabled) => ipcRenderer.invoke(IPC.globalSet, enabled),
+  onGlobal: (cb) => {
+    const listener = (_e: unknown, s: GlobalStatus): void => cb(s)
+    ipcRenderer.on(IPC.globalStatusPush, listener)
+    return () => ipcRenderer.removeListener(IPC.globalStatusPush, listener)
   }
 }
 

@@ -302,4 +302,17 @@ describe('emit', () => {
     quiet.release('KeyA')
     expect(calls.length).toBe(before)
   })
+
+  describe('key sources', () => {
+    it('releaseHeld(source) only releases that source', () => {
+      engine.applyBindings([bind({ code: 'KeyA', number: 1 }), bind({ code: 'KeyB', number: 2 })])
+      engine.press('KeyA', 'window')
+      engine.press('KeyB', 'global')
+      port.sent = []
+      engine.releaseHeld('window')
+      expect(port.sent).toEqual([[0xb0, 1, 0]])
+      engine.releaseHeld()
+      expect(port.sent).toEqual([[0xb0, 1, 0], [0xb0, 2, 0]])
+    })
+  })
 })

@@ -3,6 +3,8 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  globalShortcut,
+  shell,
   powerMonitor,
   session,
   type IpcMainEvent,
@@ -12,14 +14,17 @@ import { join } from 'node:path'
 import { MidiEngine } from './engine'
 import { VirtualPort } from './midi'
 import { BindingsStore } from './store'
-import { BINDABLE_CODES, isBindableCode } from '../shared/keys'
+import { GlobalCapture } from './globalCapture'
+import { SettingsStore } from './settings'
+import { BINDABLE_CODES, GLOBAL_TOGGLE_ACCELERATOR, isBindableCode } from '../shared/keys'
 import { IPC } from '../shared/ipc'
 import { collectWarnings, validateBinding, validateSet } from '../shared/validation'
-import type { Binding, LoadResult, SaveResult, StatusSnapshot } from '../shared/types'
+import type { Binding, GlobalStatus, LoadResult, SaveResult, StatusSnapshot } from '../shared/types'
 
 const WINDOW = { width: 1240, height: 840, minWidth: 1000, minHeight: 600, background: '#14161a' }
 const QUIT_DIALOG_CANCEL = 0
 const UNTRUSTED = 'untrusted sender'
+const ACCESSIBILITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 
 let win: BrowserWindow | null = null
 let quitting = false
@@ -35,6 +40,22 @@ const engine = new MidiEngine(port, (s: StatusSnapshot) => {
   if (win && !win.isDestroyed()) win.webContents.send(IPC.midiStatus, s)
 })
 const store = new BindingsStore(join(app.getPath('userData'), 'bindings.json'))
+const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'))
+
+let persistedGlobalKeys: boolean | null = null // null until the saved value has been applied
+const onGlobalStatus = (s: GlobalStatus): void => {
+  if (win && !win.isDestroyed()) win.webContents.send(IPC.globalStatusPush, s)
+  if (persistedGlobalKeys !== null && s.enabled !== persistedGlobalKeys) {
+    persistedGlobalKeys = s.enabled
+    void settings.save({ globalKeys: s.enabled })
+  }
+}
+// Keys typed while this window is focused are handled by the window itself; this covers every other app.
+const globalCapture = new GlobalCapture(
+  { press: (code) => engine.press(code, 'global'), release: (code) => engine.release(code, 'global') },
+  () => win !== null && !win.isDestroyed() && win.isFocused(),
+  onGlobalStatus
+)
 
 function createWindow(): void {
   win = new BrowserWindow({
@@ -61,13 +82,14 @@ function createWindow(): void {
   })
   win.on('closed', () => {
     win = null
-    engine.releaseHeld()
+    engine.releaseHeld('window')
   })
   // The engine never trusts that a keyup will arrive: any loss of the input source releases held keys.
-  win.on('hide', () => engine.releaseHeld())
-  win.webContents.on('render-process-gone', () => engine.releaseHeld())
+  win.on('hide', () => engine.releaseHeld('window'))
+  win.on('focus', () => globalCapture.onAppFocus())
+  win.webContents.on('render-process-gone', () => engine.releaseHeld('window'))
   win.webContents.on('did-start-navigation', (_e, _url, _inPlace, isMainFrame) => {
-    if (isMainFrame) engine.releaseHeld()
+    if (isMainFrame) engine.releaseHeld('window')
   })
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   win.webContents.on('will-navigate', (e) => e.preventDefault())
@@ -145,7 +167,7 @@ function registerIpc(): void {
   }
   onKey(IPC.keyPress, (code) => engine.press(code))
   onKey(IPC.keyRelease, (code) => engine.release(code))
-  ipcMain.on(IPC.keyBlur, (e) => trusted(e) && engine.releaseHeld())
+  ipcMain.on(IPC.keyBlur, (e) => trusted(e) && engine.releaseHeld('window'))
   ipcMain.on(IPC.noticeDismiss, (e) => trusted(e) && engine.dismissNotice())
 
   ipcMain.handle(IPC.midiTest, (e, v) => {
@@ -159,6 +181,11 @@ function registerIpc(): void {
     if (trusted(e)) await port.reconnect()
   })
   ipcMain.handle(IPC.midiStatus, (e) => (trusted(e) ? engine.snapshot() : null))
+  ipcMain.handle(IPC.globalStatus, () => globalCapture.status())
+  ipcMain.handle(IPC.globalSet, (e, on: unknown) =>
+    trusted(e) && typeof on === 'boolean' ? globalCapture.setEnabled(on, true) : globalCapture.status()
+  )
+  ipcMain.on(IPC.globalOpenAccess, (e) => trusted(e) && void shell.openExternal(ACCESSIBILITY_SETTINGS_URL))
   ipcMain.handle(IPC.bindingsLoad, (e) =>
     trusted(e) ? loadForRenderer() : { bindings: [], warnings: [UNTRUSTED] }
   )
@@ -171,6 +198,8 @@ function registerIpc(): void {
 function finishQuit(): void {
   engine.panic() // no-op when the ledger is empty or the port is lost
   quitting = true
+  globalCapture.stop()
+  globalShortcut.unregisterAll()
   port.close()
   app.exit(0)
 }
@@ -221,6 +250,7 @@ function main(): void {
   app.on('before-quit', onBeforeQuit)
   process.on('exit', () => {
     // Best effort for exits that skipped before-quit (signals, dev restarts).
+    globalCapture.stop()
     engine.panic()
     port.close()
   })
@@ -237,6 +267,14 @@ function main(): void {
     void port.open() // in parallel with the window; the UI shows "lost" until it opens
     startupLoad = loadBindings() // main owns the bindings; don't wait for a renderer to ask
     createWindow()
+    void settings.load().then((st) => {
+      persistedGlobalKeys = st.globalKeys
+      globalCapture.init(st.globalKeys)
+      // Registered after the saved setting is applied so an early toggle can't be overwritten.
+      if (!globalShortcut.register(GLOBAL_TOGGLE_ACCELERATOR, () => globalCapture.toggle())) {
+        console.warn(`[global-keys] could not register ${GLOBAL_TOGGLE_ACCELERATOR}`)
+      }
+    })
     powerMonitor.on('resume', () => void port.reconnect())
   })
 }

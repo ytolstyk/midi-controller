@@ -10,5 +10,9 @@ export const IPC = {
   /** Used both as a push (main → renderer) and as an invoke (snapshot request). */
   midiStatus: 'midi:status',
   bindingsLoad: 'bindings:load',
-  bindingsSave: 'bindings:save'
+  bindingsSave: 'bindings:save',
+  globalStatus: 'global:status',
+  globalStatusPush: 'global:status-changed',
+  globalSet: 'global:set',
+  globalOpenAccess: 'global:open-access'
 } as const
