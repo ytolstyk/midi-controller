@@ -15,7 +15,10 @@ export npm_config_arch=arm64 npm_config_platform=darwin
 
 npm run package
 
-codesign --force --deep --sign - "$BUILT"
+# Ad-hoc signing normally ties the Accessibility permission to this exact build, so every reinstall
+# would invalidate it. A fixed designated requirement keeps the grant valid across rebuilds.
+BUNDLE_ID="com.local.keycontroller"
+codesign --force --deep --sign - -r="designated => identifier \"$BUNDLE_ID\"" "$BUILT"
 
 # Quit a running copy so it can be replaced (Off messages are sent on quit).
 if pgrep -f "$APP_NAME.app/Contents/MacOS" >/dev/null; then
