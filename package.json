@@ -1,0 +1,31 @@
+{
+  "name": "midi-controller",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keyboard-to-MIDI controller for Neural DSP plugins (virtual CoreMIDI port)",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "monitor": "node tools/midi-monitor.cjs",
+    "start": "electron-vite preview"
+  },
+  "dependencies": {
+    "@julusian/midi": "^3.8.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.5.1",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.3"
+  }
+}
