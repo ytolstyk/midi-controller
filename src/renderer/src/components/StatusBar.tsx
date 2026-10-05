@@ -37,7 +37,7 @@ export const StatusBar = memo(function StatusBar({ status, focused, global, onSe
       <div className="brand">
         <span className="brand-mark" aria-hidden="true" />
         <div>
-          <h1>Key Controller</h1>
+          <h1>Midi-eval Controller</h1>
           <p className="muted small">Keyboard → virtual MIDI for Neural DSP</p>
         </div>
       </div>

@@ -63,7 +63,7 @@ function createWindow(): void {
     height: WINDOW.height,
     minWidth: WINDOW.minWidth,
     minHeight: WINDOW.minHeight,
-    title: 'Key Controller',
+    title: 'Midi-eval Controller',
     backgroundColor: WINDOW.background,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

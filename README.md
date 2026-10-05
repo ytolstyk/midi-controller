@@ -1,7 +1,7 @@
-# Key Controller
+# Midi-eval Controller
 
 Turn your Mac keyboard into a MIDI controller for Neural DSP plugins (or anything with MIDI learn).
-The app creates a virtual CoreMIDI source called **Key Controller**; each key you assign sends a CC or
+The app creates a virtual CoreMIDI source called **Midi-eval Controller**; each key you assign sends a CC or
 Note message that you map once with the plugin's MIDI learn.
 
 ## Run
@@ -19,8 +19,8 @@ Apple Silicon: if your Node runs under Rosetta, install with
 
 ## Use it with Neural DSP
 
-1. Start **Key Controller first**, then the plugin/DAW (many hosts only scan MIDI ports at startup).
-2. In the plugin/host, enable the **Key Controller** MIDI input.
+1. Start **Midi-eval Controller first**, then the plugin/DAW (many hosts only scan MIDI ports at startup).
+2. In the plugin/host, enable the **Midi-eval Controller** MIDI input.
 3. In the app click a key (or **Learn key** and press one), set label / message / behavior, **Save**.
 4. In the plugin open MIDI learn, click a parameter, then press **Test** (or click back on this window and press the key).
 
@@ -49,7 +49,7 @@ The header shows *Keys active* or *Click this window to activate keys*.
 - Keys only work while the window is focused.
 - A crash/force-quit, or quitting while the port is lost, can't send Off messages — use the plugin's own reset.
 - Port health is detected on send failure and on wake, not by polling; use **Reconnect** if the plugin stops responding.
-- If an unclean exit leaves a stale port, a relaunch may open as `Key Controller 2` and your MIDI-learn assignments
+- If an unclean exit leaves a stale port, a relaunch may open as `Midi-eval Controller 2` and your MIDI-learn assignments
   (which point at the old name) go quiet until the stale port clears.
 - On-screen labels assume an ANSI QWERTY layout.
 - The quit confirmation blocks until answered; Activity Monitor is the last resort for a backgrounded app.
@@ -62,5 +62,5 @@ Turn on **Global keys** in the header to play without focusing the window. It us
 
 - Only the bound keys (A–Z, 0–9, arrows) are looked at, and only without Cmd/Ctrl/Alt/Shift. Nothing else is read, stored or logged.
 - The keys still reach the app you're typing in, so turn capture off when you type elsewhere.
-- While it's on, the bound keys you press in **any** app are sent as MIDI on the "Key Controller" port, which other apps on this Mac (or a network MIDI session) can read. Don't use bound keys for passwords while it's on.
+- While it's on, the bound keys you press in **any** app are sent as MIDI on the "Midi-eval Controller" port, which other apps on this Mac (or a network MIDI session) can read. Don't use bound keys for passwords while it's on.
 - Reinstalling can reset the permission (the app is ad-hoc signed): remove and re-add it in the Accessibility list.

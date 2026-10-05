@@ -19,7 +19,7 @@ Apple Silicon with Node under Rosetta: install with `npm_config_arch=arm64 npm i
 
 ## Architecture
 
-macOS-only Electron app (electron-vite) that turns keyboard keys into MIDI CC/Note messages on a virtual CoreMIDI port named "Key Controller". See README.md for user-facing behavior (modes, panic, global keys, limitations).
+macOS-only Electron app (electron-vite) that turns keyboard keys into MIDI CC/Note messages on a virtual CoreMIDI port named "Midi-eval Controller". See README.md for user-facing behavior (modes, panic, global keys, limitations).
 
 - `src/shared/` — pure code used by both processes: types, key whitelist (`keys.ts`), MIDI byte encoding, binding validation, IPC channel names (`ipc.ts`), and the `api.ts` contract exposed to the renderer.
 - `src/main/` — all MIDI logic lives here, not in the renderer.

@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "com.local.keycontroller",
-    "productName": "Key Controller",
+    "productName": "Midi-eval Controller",
     "directories": {
       "output": "dist"
     },

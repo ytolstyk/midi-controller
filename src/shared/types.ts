@@ -57,7 +57,7 @@ export interface SaveResult {
 /** Auto Note Off delay for trigger-mode notes and the Test button. */
 export const TRIGGER_OFF_MS = 100
 
-export const PORT_BASE_NAME = 'Key Controller'
+export const PORT_BASE_NAME = 'Midi-eval Controller'
 
 /** OS-wide key capture state shown in the header. */
 export interface GlobalStatus {

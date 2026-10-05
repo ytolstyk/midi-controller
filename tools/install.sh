@@ -1,9 +1,9 @@
 #!/bin/bash
-# Build, ad-hoc sign and install Key Controller into /Applications (Apple Silicon).
+# Build, ad-hoc sign and install Midi-eval Controller into /Applications (Apple Silicon).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP_NAME="Key Controller"
+APP_NAME="Midi-eval Controller"
 BUILT="dist/mac-arm64/$APP_NAME.app"
 DEST="/Applications/$APP_NAME.app"
 

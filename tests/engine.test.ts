@@ -8,7 +8,7 @@ class FakePort implements MidiPort {
   failNext = 0
   isOpen = (): boolean => this.up
   state = (): PortState => (this.up ? 'open' : 'lost')
-  name = (): string => 'Key Controller'
+  name = (): string => 'Midi-eval Controller'
   send(bytes: number[]): boolean {
     if (!this.up) return false
     if (this.failNext > 0) {
@@ -229,9 +229,9 @@ describe('reconnect', () => {
     engine.applyBindings([bind({ code: 'KeyA' })])
     engine.onReconnected(null)
     expect(last?.notice).toEqual({ text: 'Reconnected', sticky: false })
-    engine.onReconnected('Key Controller 2')
+    engine.onReconnected('Midi-eval Controller 2')
     expect(last?.notice?.sticky).toBe(true)
-    expect(last?.notice?.text).toMatch(/Key Controller 2/)
+    expect(last?.notice?.text).toMatch(/Midi-eval Controller 2/)
   })
 })
 

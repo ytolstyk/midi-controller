@@ -1,11 +1,11 @@
-// Prints everything arriving on the "Key Controller" virtual port. Run: npm run monitor
+// Prints everything arriving on the "Midi-eval Controller" virtual port. Run: npm run monitor
 const midi = require('@julusian/midi')
 
 const input = new midi.Input()
 const names = Array.from({ length: input.getPortCount() }, (_, i) => input.getPortName(i))
-const idx = names.findIndex((n) => n.startsWith('Key Controller'))
+const idx = names.findIndex((n) => n.startsWith('Midi-eval Controller'))
 if (idx < 0) {
-  console.error('No "Key Controller" source found. Start the app first.\nSources:', names)
+  console.error('No "Midi-eval Controller" source found. Start the app first.\nSources:', names)
   process.exit(1)
 }
 const label = ({ 0x80: 'Note Off', 0x90: 'Note On ', 0xb0: 'CC      ' })
