@@ -17,6 +17,77 @@ npm run monitor    # print the MIDI the app sends (needs the app running)
 Apple Silicon: if your Node runs under Rosetta, install with
 `npm_config_arch=arm64 npm install` so Electron and the MIDI addon are native.
 
+## Package a standalone app (macOS)
+
+This produces a normal `Midi-eval Controller.app` that runs without Node, npm or any dev tools installed. You only
+need the tools below on the machine that **builds** it.
+
+### 1. Prerequisites (build machine only)
+
+- macOS on Apple Silicon or Intel, with Xcode Command Line Tools (`xcode-select --install`; provides `codesign` and the
+  compiler used if a native addon has no prebuilt binary).
+- Node.js 20 or newer (`node -v`) and npm.
+
+### 2. Build the app
+
+```bash
+git clone <this repo> && cd midi-controller
+npm ci        # Apple Silicon with Node under Rosetta: npm_config_arch=arm64 npm ci
+npm run package
+```
+
+`npm run package` builds the renderer/main bundles and runs electron-builder, writing the app to
+`dist/mac-arm64/Midi-eval Controller.app`. The two native addons (`@julusian/midi`, `uiohook-napi`) are bundled
+unpacked inside the app, so nothing needs to be installed on the target Mac.
+
+The script is Apple Silicon only (`--arm64`). For an Intel build, install with `npm_config_arch=x64 npm ci` and run
+`npx electron-vite build && npx electron-builder --mac --x64 --dir`; the app lands in `dist/mac/`. Native addons are
+not cross-compiled, so each architecture must be built with dependencies installed for that architecture.
+
+### 3. Sign it
+
+Unsigned arm64 apps will not launch on macOS, so ad-hoc sign the bundle. Use the fixed designated requirement so the
+Accessibility permission (for Global keys) survives reinstalls:
+
+```bash
+codesign --force --deep --sign - -r='designated => identifier "com.local.keycontroller"' \
+  "dist/mac-arm64/Midi-eval Controller.app"
+```
+
+`npm run install-app` does steps 2–3 and copies the result to `/Applications` in one go (add `--open` to launch it).
+
+### 4. Share it
+
+Zip with `ditto` (plain `zip` can break the signature):
+
+```bash
+ditto -c -k --keepParent "dist/mac-arm64/Midi-eval Controller.app" Midi-eval-Controller-arm64.zip
+```
+
+Send the zip. The recipient unzips it, drags the app to `/Applications` and opens it.
+
+### 5. First launch on someone else's Mac
+
+The app is not notarized (that needs a paid Apple Developer ID), so Gatekeeper blocks it on first open:
+
+- **Right-click the app → Open → Open**, or
+- System Settings → Privacy & Security → **Open Anyway**, or
+- in Terminal: `xattr -dr com.apple.quarantine "/Applications/Midi-eval Controller.app"`
+
+Then see [Use it with Neural DSP](#use-it-with-neural-dsp). Global keys additionally needs Accessibility permission
+(see below). The recipient's Mac must match the architecture you built for (Apple Silicon vs Intel).
+
+To distribute without these warnings, replace ad-hoc signing with a Developer ID Application certificate and notarize
+(set `mac.identity` and add `mac.notarize` / hardened-runtime entitlements in the `build` section of `package.json`).
+
+### Windows
+
+Not supported. The app's core feature is a *virtual* MIDI port created through CoreMIDI, and Windows has no
+equivalent: its MIDI APIs cannot create virtual ports, and the key capture and window behavior are written for macOS.
+A Windows port would need a virtual-port driver such as loopMIDI, code changes in `src/main/midi.ts` to open it by
+name, and a `win` target in the electron-builder config, built on Windows. None of that exists in this repo today, so
+there is no honest `npm run` command for it.
+
 ## Use it with Neural DSP
 
 1. Start **Midi-eval Controller first**, then the plugin/DAW (many hosts only scan MIDI ports at startup).
