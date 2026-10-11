@@ -128,6 +128,10 @@ b { color: var(--text); font-weight: 600; }
 .cap.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .cap.pressed { background: var(--accent); border-color: var(--accent); transform: translateY(2px); border-bottom-width: 1px; }
 .cap.pressed .cap-key, .cap.pressed .cap-label, .cap.pressed .cap-target, .cap.pressed .cap-mode { color: var(--accent-ink); }
+.cap.colored { background: color-mix(in srgb, var(--pad) 16%, var(--cap-bound)); border-color: color-mix(in srgb, var(--pad) 60%, var(--line)); }
+.cap.colored .cap-key { color: var(--pad); }
+.cap.colored.selected { border-color: var(--accent); }
+.cap.colored.pressed { background: var(--pad); border-color: var(--pad); box-shadow: 0 0 14px var(--pad); }
 .cap-led {
   position: absolute; top: 9px; right: 9px;
   width: 9px; height: 9px; border-radius: 50%;
@@ -157,6 +161,20 @@ input, select {
 input[type='number'] { font-family: var(--mono); }
 .row2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.fields-tight { gap: 6px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch {
+  appearance: none; cursor: pointer; width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  background: var(--pad); border: 2px solid transparent; box-shadow: 0 0 0 1px var(--line);
+}
+.swatch:hover { box-shadow: 0 0 0 1px var(--muted); }
+.swatch[aria-checked='true'] { border-color: var(--bg); box-shadow: 0 0 0 2px var(--text); }
+.swatch-none { background: transparent; box-shadow: 0 0 0 1px var(--muted); position: relative; }
+.swatch-none::after { content: ''; position: absolute; inset: 9px -1px auto; height: 2px; background: var(--muted); transform: rotate(-45deg); }
+.field-label { font-size: 12px; color: var(--muted); }
+.presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 760px; }
+.presets select, .presets input { width: auto; min-width: 150px; }
+.presets .preset-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
 .actions { display: flex; gap: 8px; }
 .errors { margin: 0; padding: 8px 12px 8px 28px; border: 1px solid #5a2a2a; background: #2a1717; border-radius: 8px; color: #ff9c99; font-size: 12px; }
 

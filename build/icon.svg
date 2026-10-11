@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2d2250"/>
+      <stop offset="1" stop-color="#0f0b1f"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9eef5"/>
+      <stop offset="0.55" stop-color="#9aa6b8"/>
+      <stop offset="1" stop-color="#5d687a"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#d9c79a"/>
+      <stop offset="1" stop-color="#fff4d6"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd36b"/>
+      <stop offset="1" stop-color="#d4912a"/>
+    </linearGradient>
+    <linearGradient id="padOn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9a4a"/>
+      <stop offset="1" stop-color="#ff5a36"/>
+    </linearGradient>
+    <linearGradient id="padOff" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b3066"/>
+      <stop offset="1" stop-color="#2a2150"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="3"/>
+
+  <g transform="translate(0 -45)">
+  <!-- horns -->
+  <g filter="url(#shadow)">
+    <path d="M360 470 C285 465 215 400 205 240 C262 335 325 360 392 372 Z" fill="url(#horn)"/>
+    <path d="M664 470 C739 465 809 400 819 240 C762 335 699 360 632 372 Z" fill="url(#horn)"/>
+  </g>
+  <g fill="none" stroke="#b79f6a" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round">
+    <path d="M300 420 C262 395 238 350 232 300"/>
+    <path d="M724 420 C762 395 786 350 792 300"/>
+  </g>
+
+  <!-- helmet -->
+  <g filter="url(#shadow)">
+    <path d="M340 540 C340 380 420 305 512 305 C604 305 684 380 684 540 Z" fill="url(#steel)"/>
+    <!-- nose guard -->
+    <path d="M490 540 L534 540 L528 640 Q512 656 496 640 Z" fill="url(#steel)"/>
+  </g>
+  <path d="M512 305 L512 540" stroke="#ffffff" stroke-opacity="0.35" stroke-width="10"/>
+  <path d="M385 470 C390 400 430 345 480 322" fill="none" stroke="#fff" stroke-opacity="0.55" stroke-width="14" stroke-linecap="round"/>
+  <!-- brow band -->
+  <rect x="326" y="488" width="372" height="56" rx="12" fill="url(#gold)"/>
+  <g fill="#8a5a12" fill-opacity="0.7">
+    <circle cx="362" cy="516" r="8"/><circle cx="420" cy="516" r="8"/>
+    <circle cx="604" cy="516" r="8"/><circle cx="662" cy="516" r="8"/>
+  </g>
+  <!-- eyes -->
+  <path d="M410 575 L470 575 L452 598 L418 598 Z M554 575 L614 575 L606 598 L572 598 Z" fill="#0f0b1f" fill-opacity="0.0"/>
+
+  </g>
+
+  <!-- pads -->
+  <clipPath id="clip"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+  <g clip-path="url(#clip)">
+    <g fill="#ff6a3a" opacity="0.8" filter="url(#glow)">
+      <rect x="288" y="635" width="100" height="100" rx="18"/>
+      <rect x="636" y="635" width="100" height="100" rx="18"/>
+      <rect x="520" y="751" width="100" height="100" rx="18"/>
+    </g>
+    <rect x="288" y="635" width="100" height="100" rx="18" fill="url(#padOn)"/>
+    <rect x="404" y="635" width="100" height="100" rx="18" fill="url(#padOff)"/>
+    <rect x="520" y="635" width="100" height="100" rx="18" fill="url(#padOff)"/>
+    <rect x="636" y="635" width="100" height="100" rx="18" fill="url(#padOn)"/>
+    <rect x="288" y="751" width="100" height="100" rx="18" fill="url(#padOff)"/>
+    <rect x="404" y="751" width="100" height="100" rx="18" fill="url(#padOff)"/>
+    <rect x="520" y="751" width="100" height="100" rx="18" fill="url(#padOn)"/>
+    <rect x="636" y="751" width="100" height="100" rx="18" fill="url(#padOff)"/>
+  </g>
+</svg>

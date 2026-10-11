@@ -14,12 +14,23 @@ import { join } from 'node:path'
 import { MidiEngine } from './engine'
 import { VirtualPort } from './midi'
 import { BindingsStore } from './store'
+import { PresetStore } from './presets'
 import { GlobalCapture } from './globalCapture'
 import { SettingsStore } from './settings'
+import { PRESET_NAME_MAX } from '../shared/types'
 import { BINDABLE_CODES, GLOBAL_TOGGLE_ACCELERATOR, isBindableCode } from '../shared/keys'
 import { IPC } from '../shared/ipc'
-import { collectWarnings, validateBinding, validateSet } from '../shared/validation'
-import type { Binding, GlobalStatus, LoadResult, SaveResult, StatusSnapshot } from '../shared/types'
+import { collectWarnings, normalizePresetName, pickBinding, validateBinding, validateSet } from '../shared/validation'
+import type {
+  Binding,
+  GlobalStatus,
+  LoadResult,
+  Preset,
+  PresetLoadResult,
+  PresetResult,
+  SaveResult,
+  StatusSnapshot
+} from '../shared/types'
 
 const WINDOW = { width: 1240, height: 840, minWidth: 1000, minHeight: 600, background: '#14161a' }
 const QUIT_DIALOG_CANCEL = 0
@@ -40,6 +51,7 @@ const engine = new MidiEngine(port, (s: StatusSnapshot) => {
   if (win && !win.isDestroyed()) win.webContents.send(IPC.midiStatus, s)
 })
 const store = new BindingsStore(join(app.getPath('userData'), 'bindings.json'))
+const presets = new PresetStore(join(app.getPath('userData'), 'presets.json'))
 const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'))
 
 let persistedGlobalKeys: boolean | null = null // null until the saved value has been applied
@@ -104,17 +116,6 @@ const trusted = (e: IpcMainEvent | IpcMainInvokeEvent): boolean =>
 
 const codeOf = (v: unknown): string | null => (typeof v === 'string' && isBindableCode(v) ? v : null)
 
-/** Re-pick known fields so nothing extra from the renderer is persisted or applied. */
-const pickBinding = (b: Binding): Binding => ({
-  code: b.code,
-  label: b.label,
-  type: b.type,
-  channel: b.channel,
-  number: b.number,
-  mode: b.mode,
-  value: b.value
-})
-
 const rejected = (errors: string[]): SaveResult => ({ ok: false, errors, warnings: [] })
 
 /** Loads and saves run one at a time so they can't interleave or apply stale data. */
@@ -137,7 +138,7 @@ async function doSaveBindings(raw: unknown): Promise<SaveResult> {
   try {
     await store.save(bindings)
   } catch (err) {
-    return rejected([`could not save: ${err instanceof Error ? err.message : String(err)}`])
+    return rejected([`could not save: ${errorText(err)}`])
   }
   engine.applyBindings(bindings)
   return { ok: true, errors: [], warnings: collectWarnings(bindings) }
@@ -148,6 +149,73 @@ const loadBindings = (): Promise<LoadResult> =>
     const result = await store.load()
     engine.applyBindings(result.bindings)
     return { ...result, warnings: [...result.warnings, ...collectWarnings(result.bindings)] }
+  })
+
+const presetNames = async (): Promise<string[]> => (await presets.list()).map((p) => p.name)
+const presetFailure = async (errors: string[]): Promise<PresetResult> => ({
+  ok: false,
+  errors,
+  names: await presetNames().catch(() => [])
+})
+const presetLoadFailure = async (errors: string[]): Promise<PresetLoadResult> => ({
+  ...(await presetFailure(errors)),
+  bindings: [],
+  warnings: []
+})
+const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err))
+
+/** Snapshots what is currently saved (main owns the bindings, not the renderer). */
+const doSavePreset = (raw: unknown): Promise<PresetResult> =>
+  inOrder(async () => {
+    const name = normalizePresetName(raw)
+    if (!name) return presetFailure([`preset name must be 1-${PRESET_NAME_MAX} characters`])
+    try {
+      const { bindings } = await store.load()
+      return { ok: true, errors: [], names: (await presets.put(name, bindings)).map((p) => p.name) }
+    } catch (err) {
+      return presetFailure([`could not save preset: ${errorText(err)}`])
+    }
+  })
+
+const doLoadPreset = (raw: unknown): Promise<PresetLoadResult> =>
+  inOrder(async () => {
+    const name = normalizePresetName(raw)
+    let preset: Preset | undefined
+    try {
+      preset = name ? (await presets.list()).find((p) => p.name === name) : undefined
+    } catch (err) {
+      return presetLoadFailure([`could not read presets: ${errorText(err)}`])
+    }
+    if (!preset) return presetLoadFailure(['preset not found'])
+    const invalid = [
+      ...(preset.bindings.length > BINDABLE_CODES.length ? ['too many bindings'] : []),
+      ...validateSet(preset.bindings)
+    ]
+    if (invalid.length > 0) return presetLoadFailure(invalid)
+    try {
+      await store.save(preset.bindings)
+    } catch (err) {
+      return presetLoadFailure([`could not apply preset: ${errorText(err)}`])
+    }
+    engine.applyBindings(preset.bindings)
+    return {
+      ok: true,
+      errors: [],
+      names: await presetNames(),
+      bindings: preset.bindings,
+      warnings: [...presets.warnings, ...collectWarnings(preset.bindings)]
+    }
+  })
+
+const doDeletePreset = (raw: unknown): Promise<PresetResult> =>
+  inOrder(async () => {
+    const name = normalizePresetName(raw)
+    if (!name) return presetFailure(['preset not found'])
+    try {
+      return { ok: true, errors: [], names: (await presets.remove(name)).map((p) => p.name) }
+    } catch (err) {
+      return presetFailure([`could not delete preset: ${errorText(err)}`])
+    }
   })
 
 /** The load started at launch; the first renderer request reuses it so its warnings aren't lost. */
@@ -188,6 +256,18 @@ function registerIpc(): void {
   ipcMain.on(IPC.globalOpenAccess, (e) => trusted(e) && void shell.openExternal(ACCESSIBILITY_SETTINGS_URL))
   ipcMain.handle(IPC.bindingsLoad, (e) =>
     trusted(e) ? loadForRenderer() : { bindings: [], warnings: [UNTRUSTED] }
+  )
+  ipcMain.handle(IPC.presetList, (e) =>
+    trusted(e) ? inOrder(presetNames).catch(() => [] as string[]) : []
+  )
+  ipcMain.handle(IPC.presetSave, (e, name: unknown) =>
+    trusted(e) ? doSavePreset(name) : presetFailure([UNTRUSTED])
+  )
+  ipcMain.handle(IPC.presetLoad, (e, name: unknown) =>
+    trusted(e) ? doLoadPreset(name) : presetLoadFailure([UNTRUSTED])
+  )
+  ipcMain.handle(IPC.presetDelete, (e, name: unknown) =>
+    trusted(e) ? doDeletePreset(name) : presetFailure([UNTRUSTED])
   )
   ipcMain.handle(IPC.bindingsSave, (e, raw: unknown) =>
     trusted(e) ? saveBindings(raw) : rejected([UNTRUSTED])

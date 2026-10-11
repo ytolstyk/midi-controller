@@ -1,4 +1,5 @@
-import { memo, type JSX } from 'react'
+import { memo, type CSSProperties, type JSX } from 'react'
+import { colorHex } from '../../../shared/colors'
 import { keyCaption } from '../../../shared/keys'
 import type { Binding, ToggleState } from '../../../shared/types'
 import { ARROW_ROW, ARROW_UP, KEY_ROWS } from '../keyboardLayout'
@@ -26,9 +27,11 @@ interface CapProps {
 
 /** One key. Takes primitives so memo skips re-render when only other keys change. */
 const Cap = memo(function Cap({ code, binding: b, pressed, selected, toggle, onSelect }: CapProps): JSX.Element {
+  const hex = colorHex(b?.color)
   const cls = [
     'cap',
     b ? 'bound' : '',
+    hex ? 'colored' : '',
     pressed ? 'pressed' : '',
     selected ? 'selected' : '',
     toggle ? `toggle-${toggle}` : ''
@@ -36,7 +39,13 @@ const Cap = memo(function Cap({ code, binding: b, pressed, selected, toggle, onS
     .filter(Boolean)
     .join(' ')
   return (
-    <button type="button" className={cls} onClick={() => onSelect(code)} aria-pressed={selected}>
+    <button
+      type="button"
+      className={cls}
+      style={hex ? ({ '--pad': hex } as CSSProperties) : undefined}
+      onClick={() => onSelect(code)}
+      aria-pressed={selected}
+    >
       <span className="cap-key">{keyCaption(code)}</span>
       {b ? (
         <>

@@ -3,7 +3,10 @@ import { isBindableCode } from '../src/shared/keys'
 import {
   collectWarnings,
   defaultBindings,
+  normalizePresetName,
   parseBindingsFile,
+  parsePresetsFile,
+  pickBinding,
   validateBinding,
   validateSet
 } from '../src/shared/validation'
@@ -49,3 +52,59 @@ describe('validation', () => {
     expect(parseBindingsFile(null).bindings).toEqual([])
   })
 })
+
+describe('colors', () => {
+  it('accepts palette ids and no color, rejects anything else', () => {
+    expect(validateBinding({ ...ok, color: 'red' })).toEqual([])
+    expect(validateBinding(ok)).toEqual([])
+    expect(validateBinding({ ...ok, color: '#ff0000' })).not.toEqual([])
+    expect(validateBinding({ ...ok, color: 5 })).not.toEqual([])
+  })
+
+  it('keeps color through pickBinding and parseBindingsFile, drops unknown fields', () => {
+    expect(pickBinding({ ...ok, color: 'blue', extra: 1 } as Binding)).toEqual({ ...ok, color: 'blue' })
+    expect('color' in pickBinding(ok)).toBe(false)
+    const parsed = parseBindingsFile({ schemaVersion: 1, bindings: [{ ...ok, color: 'green' }] })
+    expect(parsed.bindings[0].color).toBe('green')
+  })
+})
+
+describe('presets', () => {
+  it('normalizes names', () => {
+    expect(normalizePresetName('  Lead  ')).toBe('Lead')
+    expect(normalizePresetName('')).toBeNull()
+    expect(normalizePresetName('   ')).toBeNull()
+    expect(normalizePresetName('x'.repeat(41))).toBeNull()
+    expect(normalizePresetName(3)).toBeNull()
+  })
+
+  it('parses leniently: drops bad names, duplicates and invalid bindings, keeps colors', () => {
+    const { presets, warnings } = parsePresetsFile({
+      schemaVersion: 1,
+      presets: [
+        { name: 'A', bindings: [{ ...ok, color: 'pink' }, { ...ok, code: 'KeyB', channel: 99 }] },
+        { name: 'A', bindings: [] },
+        { bindings: [] },
+        null
+      ]
+    })
+    expect(presets).toHaveLength(1)
+    expect(presets[0].bindings).toEqual([{ ...ok, color: 'pink' }])
+    expect(warnings.length).toBe(4)
+    expect(parsePresetsFile('nope').presets).toEqual([])
+  })
+})
+
+describe('pickBinding', () => {
+  it('round-trips a fully populated binding (guards against fields silently dropped on save)', () => {
+    const full: Binding = { ...ok, color: 'purple' }
+    expect(Object.keys(pickBinding(full)).sort()).toEqual(Object.keys(full).sort())
+    expect(pickBinding(full)).toEqual(full)
+  })
+
+  it('rejects control and bidi characters in preset names', () => {
+    expect(normalizePresetName('a\u202Eb')).toBeNull()
+    expect(normalizePresetName('a\nb')).toBeNull()
+  })
+})
+

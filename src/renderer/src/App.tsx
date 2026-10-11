@@ -1,7 +1,8 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Binding, GlobalStatus, StatusSnapshot } from '../../shared/types'
+import type { Binding, GlobalStatus, PresetResult, StatusSnapshot } from '../../shared/types'
 import { BindingEditor } from './components/BindingEditor'
+import { PresetBar } from './components/PresetBar'
 import { KeyboardView } from './components/KeyboardView'
 import { StatusBar } from './components/StatusBar'
 import { useKeyCapture } from './hooks/useKeyCapture'
@@ -19,7 +20,8 @@ export function App(): JSX.Element {
   const [learnArmed, setLearnArmed] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
-  const [panicMessage, setPanicMessage] = useState<string | null>(null)
+  const [presetNames, setPresetNames] = useState<string[]>([])
+  const [flashMessage, setFlashMessage] = useState<string | null>(null)
   const bindingsRef = useRef<Binding[]>([])
   bindingsRef.current = bindings
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -29,6 +31,7 @@ export function App(): JSX.Element {
     void window.api.getStatus().then(setStatus)
     const offGlobal = window.api.onGlobal(setGlobalKeys)
     void window.api.getGlobal().then(setGlobalKeys)
+    void window.api.listPresets().then(setPresetNames)
     void window.api.loadBindings().then((r) => {
       setBindings(r.bindings)
       setWarnings(r.warnings)
@@ -96,13 +99,53 @@ export function App(): JSX.Element {
     if (selected) void persist(bindingsRef.current.filter((b) => b.code !== selected))
   }, [persist, selected])
 
-  const onPanic = useCallback((): void => {
-    void window.api.panic().then((r) => {
-      setPanicMessage(r.message)
-      clearTimeout(flashTimer.current)
-      flashTimer.current = setTimeout(() => setPanicMessage(null), FLASH_MS)
-    })
+  const flash = useCallback((message: string): void => {
+    setFlashMessage(message)
+    clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setFlashMessage(null), FLASH_MS)
   }, [])
+
+  /** Runs a preset call, shows its outcome, and resolves true on success. Rejections become a message. */
+  const runPreset = useCallback(
+    async <R extends PresetResult>(call: Promise<R>, okMessage: string, onOk?: (r: R) => void): Promise<boolean> => {
+      try {
+        const r = await call
+        setPresetNames(r.names)
+        if (r.ok) onOk?.(r)
+        flash(r.ok ? okMessage : r.errors.join('; '))
+        return r.ok
+      } catch {
+        flash('Preset operation failed')
+        return false
+      }
+    },
+    [flash]
+  )
+
+  const onSavePreset = useCallback(
+    (name: string): Promise<boolean> => runPreset(window.api.savePreset(name), `Saved preset “${name}”`),
+    [runPreset]
+  )
+
+  const onLoadPreset = useCallback(
+    (name: string): void => {
+      void runPreset(window.api.loadPreset(name), `Loaded preset “${name}”`, (r) => {
+        setBindings(r.bindings)
+        setWarnings(r.warnings)
+        setErrors([])
+      })
+    },
+    [runPreset]
+  )
+
+  const onDeletePreset = useCallback(
+    (name: string): void => void runPreset(window.api.deletePreset(name), `Deleted preset “${name}”`),
+    [runPreset]
+  )
+
+  const onPanic = useCallback((): void => {
+    void window.api.panic().then((r) => flash(r.message))
+  }, [flash])
 
   const onReconnect = useCallback((): void => void window.api.reconnect(), [])
   const onDismissNotice = useCallback((): void => window.api.dismissNotice(), [])
@@ -119,13 +162,14 @@ export function App(): JSX.Element {
         global={globalKeys}
         onSetGlobal={updateGlobal}
         onOpenAccess={window.api.openAccessSettings}
-        panicMessage={panicMessage}
+        flashMessage={flashMessage}
         onPanic={onPanic}
         onReconnect={onReconnect}
         onDismissNotice={onDismissNotice}
       />
       <main className="workspace">
         <section className="board" aria-label="Keyboard bindings">
+          <PresetBar names={presetNames} onSave={onSavePreset} onLoad={onLoadPreset} onDelete={onDeletePreset} />
           <KeyboardView
             bindings={byCode}
             toggles={status.toggles}

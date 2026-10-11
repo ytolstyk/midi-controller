@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useState, type CSSProperties } from 'react'
+import { BINDING_COLORS } from '../../../shared/colors'
 import { keyCaption } from '../../../shared/keys'
 import type { Binding, BindingMode, BindingType } from '../../../shared/types'
 
@@ -23,6 +24,8 @@ const blank = (code: string): Binding => ({
   mode: 'momentary',
   value: 127
 })
+
+const withoutColor = ({ color: _color, ...rest }: Binding): Binding => rest
 
 const clampInt = (v: string, min: number, max: number): number => {
   const n = Math.round(Number(v))
@@ -123,6 +126,34 @@ export const BindingEditor = memo(function BindingEditor(p: Props): JSX.Element 
                 onChange={(e) => setDraft({ ...draft, value: clampInt(e.target.value, 0, 127) })}
               />
             </label>
+          </div>
+
+          <div role="radiogroup" aria-label="Color" className="fields fields-tight">
+            <span className="field-label">Color</span>
+            <div className="swatches">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!draft.color}
+                aria-label="No color"
+                title="No color"
+                className="swatch swatch-none"
+                onClick={() => setDraft(withoutColor(draft))}
+              />
+              {BINDING_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={draft.color === c.id}
+                  aria-label={c.label}
+                  title={c.label}
+                  className="swatch"
+                  style={{ '--pad': c.hex } as CSSProperties}
+                  onClick={() => setDraft({ ...draft, color: c.id })}
+                />
+              ))}
+            </div>
           </div>
 
           {p.errors.length > 0 ? (

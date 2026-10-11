@@ -8,7 +8,7 @@ interface Props {
   global: GlobalStatus
   onSetGlobal(enabled: boolean): void
   onOpenAccess(): void
-  panicMessage: string | null
+  flashMessage: string | null
   onPanic(): void
   onReconnect(): void
   onDismissNotice(): void
@@ -27,7 +27,7 @@ function describeKeys(global: GlobalStatus, focused: boolean): Chip {
   return { cls: 'chip-warn', text: 'Click this window to activate keys' }
 }
 
-export const StatusBar = memo(function StatusBar({ status, focused, global, onSetGlobal, onOpenAccess, panicMessage, onPanic, onReconnect, onDismissNotice }: Props): JSX.Element {
+export const StatusBar = memo(function StatusBar({ status, focused, global, onSetGlobal, onOpenAccess, flashMessage, onPanic, onReconnect, onDismissNotice }: Props): JSX.Element {
   const open = status.port.state === 'open'
   const notice: Notice | null = status.notice
   const needsAccess = global.enabled && global.access === 'denied'
@@ -78,7 +78,7 @@ export const StatusBar = memo(function StatusBar({ status, focused, global, onSe
         </button>
       </div>
 
-      {panicMessage ? <p className="flash" role="status">{panicMessage}</p> : null}
+      {flashMessage ? <p className="flash" role="status">{flashMessage}</p> : null}
       {notice ? (
         <div className={`notice ${notice.sticky ? 'notice-sticky' : ''}`} role="status">
           <span>{notice.text}</span>

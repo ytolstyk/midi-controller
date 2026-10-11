@@ -1,4 +1,5 @@
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
+import { writeFileAtomic } from './atomicWrite'
 
 export interface Settings {
   globalKeys: boolean
@@ -26,10 +27,8 @@ export class SettingsStore {
   /** Saves run one at a time, each via tmp + rename, so a crash or a quick double toggle can't leave a torn or stale file. */
   save(s: Settings): Promise<void> {
     this.writes = this.writes.then(async () => {
-      const tmp = `${this.path}.tmp`
       try {
-        await writeFile(tmp, JSON.stringify(s), { encoding: 'utf8', mode: 0o600 })
-        await rename(tmp, this.path)
+        await writeFileAtomic(this.path, JSON.stringify(s))
       } catch (err) {
         console.warn('[settings] could not save', err) // keep running with the in-memory value
       }

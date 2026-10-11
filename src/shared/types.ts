@@ -1,3 +1,5 @@
+import type { BindingColorId } from './colors'
+
 export type BindingType = 'cc' | 'note'
 export type BindingMode = 'momentary' | 'toggle' | 'trigger'
 
@@ -13,6 +15,8 @@ export interface Binding {
   mode: BindingMode
   /** "On" value: CC value or Note velocity, 0-127 */
   value: number
+  /** Palette id from shared/colors.ts; absent = default look. */
+  color?: BindingColorId
 }
 
 export interface BindingsFile {
@@ -53,6 +57,32 @@ export interface SaveResult {
   errors: string[]
   warnings: string[]
 }
+
+export interface Preset {
+  name: string
+  bindings: Binding[]
+}
+
+export interface PresetsFile {
+  schemaVersion: 1
+  presets: Preset[]
+}
+
+/** Outcome of a preset operation; `names` is the library after the operation. */
+export interface PresetResult {
+  ok: boolean
+  errors: string[]
+  names: string[]
+}
+
+export interface PresetLoadResult extends PresetResult {
+  /** The bindings now active (empty when not ok). */
+  bindings: Binding[]
+  warnings: string[]
+}
+
+export const PRESET_NAME_MAX = 40
+export const MAX_PRESETS = 200
 
 /** Auto Note Off delay for trigger-mode notes and the Test button. */
 export const TRIGGER_OFF_MS = 100

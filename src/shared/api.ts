@@ -1,4 +1,13 @@
-import type { Binding, GlobalStatus, LoadResult, PanicResult, SaveResult, StatusSnapshot } from './types'
+import type {
+  Binding,
+  GlobalStatus,
+  LoadResult,
+  PanicResult,
+  PresetLoadResult,
+  PresetResult,
+  SaveResult,
+  StatusSnapshot
+} from './types'
 
 /** Surface exposed to the renderer via contextBridge as `window.api`. */
 export interface Api {
@@ -12,6 +21,12 @@ export interface Api {
   dismissNotice(): void
   loadBindings(): Promise<LoadResult>
   saveBindings(bindings: Binding[]): Promise<SaveResult>
+  listPresets(): Promise<string[]>
+  /** Save the currently saved bindings under `name` (overwrites a preset with that name). */
+  savePreset(name: string): Promise<PresetResult>
+  /** Make a preset the active bindings. */
+  loadPreset(name: string): Promise<PresetLoadResult>
+  deletePreset(name: string): Promise<PresetResult>
   getStatus(): Promise<StatusSnapshot>
   /** Subscribe to status pushes; returns an unsubscribe function. */
   onStatus(cb: (s: StatusSnapshot) => void): () => void

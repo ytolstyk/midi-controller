@@ -13,6 +13,10 @@ const api: Api = {
   dismissNotice: () => ipcRenderer.send(IPC.noticeDismiss),
   loadBindings: () => ipcRenderer.invoke(IPC.bindingsLoad),
   saveBindings: (b) => ipcRenderer.invoke(IPC.bindingsSave, b),
+  listPresets: () => ipcRenderer.invoke(IPC.presetList),
+  savePreset: (name) => ipcRenderer.invoke(IPC.presetSave, name),
+  loadPreset: (name) => ipcRenderer.invoke(IPC.presetLoad, name),
+  deletePreset: (name) => ipcRenderer.invoke(IPC.presetDelete, name),
   getStatus: () => ipcRenderer.invoke(IPC.midiStatus),
   onStatus: (cb) => {
     const listener = (_e: unknown, s: StatusSnapshot): void => cb(s)
