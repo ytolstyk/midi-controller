@@ -4,6 +4,8 @@ Turn your Mac keyboard into a MIDI controller for Neural DSP plugins (or anythin
 The app creates a virtual CoreMIDI source called **Midi-eval Controller**; each key you assign sends a CC or
 Note message that you map once with the plugin's MIDI learn.
 
+![Midi-eval Controller keyboard view with sample bindings](docs/screenshot.png)
+
 ## Run
 
 ```bash
