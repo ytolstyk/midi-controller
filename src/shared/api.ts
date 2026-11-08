@@ -3,6 +3,7 @@ import type {
   GlobalStatus,
   LoadResult,
   PanicResult,
+  PresetLibrary,
   PresetLoadResult,
   PresetResult,
   SaveResult,
@@ -21,7 +22,7 @@ export interface Api {
   dismissNotice(): void
   loadBindings(): Promise<LoadResult>
   saveBindings(bindings: Binding[]): Promise<SaveResult>
-  listPresets(): Promise<string[]>
+  listPresets(): Promise<PresetLibrary>
   /** Save the currently saved bindings under `name` (overwrites a preset with that name). */
   savePreset(name: string): Promise<PresetResult>
   /** Make a preset the active bindings. */

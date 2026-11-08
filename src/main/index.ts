@@ -17,10 +17,10 @@ import { BindingsStore } from './store'
 import { PresetStore } from './presets'
 import { GlobalCapture } from './globalCapture'
 import { SettingsStore } from './settings'
-import { PRESET_NAME_MAX } from '../shared/types'
+import { EMPTY_PRESET_LIBRARY, PRESET_NAME_MAX } from '../shared/types'
 import { BINDABLE_CODES, GLOBAL_TOGGLE_ACCELERATOR, isBindableCode } from '../shared/keys'
 import { IPC } from '../shared/ipc'
-import { collectWarnings, normalizePresetName, pickBinding, validateBinding, validateSet } from '../shared/validation'
+import { collectWarnings, normalizePresetName, pickBinding, toLibrary, validateBinding, validateSet } from '../shared/validation'
 import type {
   Binding,
   GlobalStatus,
@@ -59,7 +59,7 @@ const onGlobalStatus = (s: GlobalStatus): void => {
   if (win && !win.isDestroyed()) win.webContents.send(IPC.globalStatusPush, s)
   if (persistedGlobalKeys !== null && s.enabled !== persistedGlobalKeys) {
     persistedGlobalKeys = s.enabled
-    void settings.save({ globalKeys: s.enabled })
+    void settings.patch({ globalKeys: s.enabled })
   }
 }
 // Keys typed while this window is focused are handled by the window itself; this covers every other app.
@@ -151,41 +151,47 @@ const loadBindings = (): Promise<LoadResult> =>
     return { ...result, warnings: [...result.warnings, ...collectWarnings(result.bindings)] }
   })
 
-const presetNames = async (): Promise<string[]> => (await presets.list()).map((p) => p.name)
-const presetFailure = async (errors: string[]): Promise<PresetResult> => ({
-  ok: false,
-  errors,
-  names: await presetNames().catch(() => [])
-})
-const presetLoadFailure = async (errors: string[]): Promise<PresetLoadResult> => ({
-  ...(await presetFailure(errors)),
+/** Failures carry no library; the renderer keeps what it has. */
+const presetFailure = (errors: string[]): PresetResult => ({ ok: false, errors, ...EMPTY_PRESET_LIBRARY })
+const presetLoadFailure = (errors: string[]): PresetLoadResult => ({
+  ...presetFailure(errors),
   bindings: [],
   warnings: []
 })
+/** Preset jobs run in order and only once the saved active preset has been read. */
+const presetJob = <T>(job: () => Promise<T>): Promise<T> =>
+  inOrder(async () => {
+    await settings.ready
+    return job()
+  })
 const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err))
 
 /** Snapshots what is currently saved (main owns the bindings, not the renderer). */
 const doSavePreset = (raw: unknown): Promise<PresetResult> =>
-  inOrder(async () => {
+  presetJob(async () => {
     const name = normalizePresetName(raw)
     if (!name) return presetFailure([`preset name must be 1-${PRESET_NAME_MAX} characters`])
+    let list: Preset[]
     try {
       const { bindings } = await store.load()
-      return { ok: true, errors: [], names: (await presets.put(name, bindings)).map((p) => p.name) }
+      list = await presets.put(name, bindings)
     } catch (err) {
       return presetFailure([`could not save preset: ${errorText(err)}`])
     }
+    await settings.patch({ activePreset: name })
+    return { ok: true, errors: [], ...toLibrary(list, name) }
   })
 
 const doLoadPreset = (raw: unknown): Promise<PresetLoadResult> =>
-  inOrder(async () => {
+  presetJob(async () => {
     const name = normalizePresetName(raw)
-    let preset: Preset | undefined
+    let list: Preset[]
     try {
-      preset = name ? (await presets.list()).find((p) => p.name === name) : undefined
+      list = await presets.list()
     } catch (err) {
       return presetLoadFailure([`could not read presets: ${errorText(err)}`])
     }
+    const preset = list.find((p) => p.name === name)
     if (!preset) return presetLoadFailure(['preset not found'])
     const invalid = [
       ...(preset.bindings.length > BINDABLE_CODES.length ? ['too many bindings'] : []),
@@ -198,24 +204,28 @@ const doLoadPreset = (raw: unknown): Promise<PresetLoadResult> =>
       return presetLoadFailure([`could not apply preset: ${errorText(err)}`])
     }
     engine.applyBindings(preset.bindings)
+    await settings.patch({ activePreset: preset.name })
     return {
       ok: true,
       errors: [],
-      names: await presetNames(),
+      ...toLibrary(list, preset.name),
       bindings: preset.bindings,
       warnings: [...presets.warnings, ...collectWarnings(preset.bindings)]
     }
   })
 
 const doDeletePreset = (raw: unknown): Promise<PresetResult> =>
-  inOrder(async () => {
+  presetJob(async () => {
     const name = normalizePresetName(raw)
     if (!name) return presetFailure(['preset not found'])
+    let list: Preset[]
     try {
-      return { ok: true, errors: [], names: (await presets.remove(name)).map((p) => p.name) }
+      list = await presets.remove(name)
     } catch (err) {
       return presetFailure([`could not delete preset: ${errorText(err)}`])
     }
+    if (settings.value.activePreset === name) await settings.patch({ activePreset: null })
+    return { ok: true, errors: [], ...toLibrary(list, settings.value.activePreset) }
   })
 
 /** The load started at launch; the first renderer request reuses it so its warnings aren't lost. */
@@ -258,7 +268,9 @@ function registerIpc(): void {
     trusted(e) ? loadForRenderer() : { bindings: [], warnings: [UNTRUSTED] }
   )
   ipcMain.handle(IPC.presetList, (e) =>
-    trusted(e) ? inOrder(presetNames).catch(() => [] as string[]) : []
+    trusted(e)
+      ? presetJob(async () => toLibrary(await presets.list(), settings.value.activePreset)).catch(() => EMPTY_PRESET_LIBRARY)
+      : EMPTY_PRESET_LIBRARY
   )
   ipcMain.handle(IPC.presetSave, (e, name: unknown) =>
     trusted(e) ? doSavePreset(name) : presetFailure([UNTRUSTED])
@@ -347,9 +359,9 @@ function main(): void {
     void port.open() // in parallel with the window; the UI shows "lost" until it opens
     startupLoad = loadBindings() // main owns the bindings; don't wait for a renderer to ask
     createWindow()
-    void settings.load().then((st) => {
-      persistedGlobalKeys = st.globalKeys
-      globalCapture.init(st.globalKeys)
+    void settings.ready.then(() => {
+      persistedGlobalKeys = settings.value.globalKeys
+      globalCapture.init(settings.value.globalKeys)
       // Registered after the saved setting is applied so an early toggle can't be overwritten.
       if (!globalShortcut.register(GLOBAL_TOGGLE_ACCELERATOR, () => globalCapture.toggle())) {
         console.warn(`[global-keys] could not register ${GLOBAL_TOGGLE_ACCELERATOR}`)

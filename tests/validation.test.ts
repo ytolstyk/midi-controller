@@ -7,6 +7,8 @@ import {
   parseBindingsFile,
   parsePresetsFile,
   pickBinding,
+  sameBindings,
+  toLibrary,
   validateBinding,
   validateSet
 } from '../src/shared/validation'
@@ -108,3 +110,36 @@ describe('pickBinding', () => {
   })
 })
 
+
+describe('sameBindings', () => {
+  const b: Binding = { code: 'KeyB', label: 'B', type: 'note', channel: 2, number: 60, mode: 'toggle', value: 100 }
+
+  it('ignores order and extra fields', () => {
+    expect(sameBindings([ok, b], [b, { ...ok, extra: 1 } as Binding])).toBe(true)
+  })
+
+  it('detects changed, added and removed bindings', () => {
+    expect(sameBindings([ok], [{ ...ok, value: 64 }])).toBe(false)
+    expect(sameBindings([ok], [{ ...ok, color: 'red' as Binding['color'] }])).toBe(false)
+    expect(sameBindings([ok], [ok, b])).toBe(false)
+    expect(sameBindings([ok], [{ ...ok, code: 'KeyZ' }])).toBe(false)
+    expect(sameBindings([], [])).toBe(true)
+  })
+})
+
+describe('toLibrary', () => {
+  const b: Binding = { ...ok, code: 'KeyB' }
+  const list = [
+    { name: 'One', bindings: [ok] },
+    { name: 'Two', bindings: [b] }
+  ]
+
+  it('exposes the active preset and its bindings', () => {
+    expect(toLibrary(list, 'Two')).toEqual({ names: ['One', 'Two'], active: 'Two', activeBindings: [b] })
+  })
+
+  it('treats a missing active preset as none', () => {
+    expect(toLibrary(list, 'Gone')).toEqual({ names: ['One', 'Two'], active: null, activeBindings: [] })
+    expect(toLibrary(list, null).active).toBeNull()
+  })
+})

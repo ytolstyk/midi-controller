@@ -1,6 +1,14 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Binding, GlobalStatus, PresetResult, StatusSnapshot } from '../../shared/types'
+import {
+  EMPTY_PRESET_LIBRARY,
+  type Binding,
+  type GlobalStatus,
+  type PresetLibrary,
+  type PresetResult,
+  type StatusSnapshot
+} from '../../shared/types'
+import { sameBindings } from '../../shared/validation'
 import { BindingEditor } from './components/BindingEditor'
 import { PresetBar } from './components/PresetBar'
 import { KeyboardView } from './components/KeyboardView'
@@ -20,7 +28,7 @@ export function App(): JSX.Element {
   const [learnArmed, setLearnArmed] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
-  const [presetNames, setPresetNames] = useState<string[]>([])
+  const [presets, setPresets] = useState<PresetLibrary>(EMPTY_PRESET_LIBRARY)
   const [flashMessage, setFlashMessage] = useState<string | null>(null)
   const bindingsRef = useRef<Binding[]>([])
   bindingsRef.current = bindings
@@ -31,10 +39,11 @@ export function App(): JSX.Element {
     void window.api.getStatus().then(setStatus)
     const offGlobal = window.api.onGlobal(setGlobalKeys)
     void window.api.getGlobal().then(setGlobalKeys)
-    void window.api.listPresets().then(setPresetNames)
-    void window.api.loadBindings().then((r) => {
+    // Applied together so "unsaved changes" is never judged against half-loaded state.
+    void Promise.all([window.api.loadBindings(), window.api.listPresets()]).then(([r, library]) => {
       setBindings(r.bindings)
       setWarnings(r.warnings)
+      setPresets(library)
     })
     return () => {
       off()
@@ -55,6 +64,10 @@ export function App(): JSX.Element {
   useEffect(() => () => clearTimeout(flashTimer.current), [])
 
   const byCode = useMemo(() => new Map(bindings.map((b) => [b.code, b])), [bindings])
+  const presetModified = useMemo(
+    () => presets.active !== null && !sameBindings(bindings, presets.activeBindings),
+    [bindings, presets]
+  )
   const boundCodes = useMemo(() => new Set(byCode.keys()), [byCode])
 
   const updateGlobal = useCallback((on: boolean) => void window.api.setGlobal(on).then(setGlobalKeys), [])
@@ -110,8 +123,11 @@ export function App(): JSX.Element {
     async <R extends PresetResult>(call: Promise<R>, okMessage: string, onOk?: (r: R) => void): Promise<boolean> => {
       try {
         const r = await call
-        setPresetNames(r.names)
-        if (r.ok) onOk?.(r)
+        if (r.ok) {
+          const { names, active, activeBindings } = r
+          setPresets({ names, active, activeBindings }) // failures carry no library; keep what we have
+          onOk?.(r)
+        }
         flash(r.ok ? okMessage : r.errors.join('; '))
         return r.ok
       } catch {
@@ -169,7 +185,13 @@ export function App(): JSX.Element {
       />
       <main className="workspace">
         <section className="board" aria-label="Keyboard bindings">
-          <PresetBar names={presetNames} onSave={onSavePreset} onLoad={onLoadPreset} onDelete={onDeletePreset} />
+          <PresetBar
+            names={presets.names}
+            active={presets.active}
+            modified={presetModified}
+            onSave={onSavePreset} onLoad={onLoadPreset}
+            onDelete={onDeletePreset}
+          />
           <KeyboardView
             bindings={byCode}
             toggles={status.toggles}

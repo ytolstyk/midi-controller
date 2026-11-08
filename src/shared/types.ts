@@ -68,11 +68,21 @@ export interface PresetsFile {
   presets: Preset[]
 }
 
-/** Outcome of a preset operation; `names` is the library after the operation. */
-export interface PresetResult {
+/** The preset library as the UI needs it. */
+export interface PresetLibrary {
+  names: string[]
+  /** Preset last loaded or saved (and still existing), else null. */
+  active: string | null
+  /** The active preset's stored bindings, for spotting unsaved changes; empty when `active` is null. */
+  activeBindings: Binding[]
+}
+
+export const EMPTY_PRESET_LIBRARY: PresetLibrary = { names: [], active: null, activeBindings: [] }
+
+/** Outcome of a preset operation; the library fields describe it after the operation. */
+export interface PresetResult extends PresetLibrary {
   ok: boolean
   errors: string[]
-  names: string[]
 }
 
 export interface PresetLoadResult extends PresetResult {

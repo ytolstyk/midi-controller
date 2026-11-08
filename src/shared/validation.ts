@@ -2,7 +2,7 @@ import { isBindingColor } from './colors'
 import { isBindableCode } from './keys'
 import { addressKey, addressOf } from './midi-encode'
 import { MAX_PRESETS, PRESET_NAME_MAX } from './types'
-import type { Binding, BindingMode, BindingType, BindingsFile, Preset, PresetsFile } from './types'
+import type { Binding, BindingMode, BindingType, BindingsFile, Preset, PresetLibrary, PresetsFile } from './types'
 
 const TYPES: readonly BindingType[] = ['cc', 'note']
 const MODES: readonly BindingMode[] = ['momentary', 'toggle', 'trigger']
@@ -43,6 +43,23 @@ export const pickBinding = (b: Binding): Binding => ({
   value: b.value,
   ...(b.color ? { color: b.color } : {})
 })
+
+/** The UI's view of a preset list; `activeName` only counts while a preset with that name still exists. */
+export function toLibrary(list: Preset[], activeName: string | null): PresetLibrary {
+  const active = list.find((p) => p.name === activeName)
+  return { names: list.map((p) => p.name), active: active?.name ?? null, activeBindings: active?.bindings ?? [] }
+}
+
+/**
+ * True when both lists bind the same keys to the same messages, regardless of order.
+ * Compares every persisted field (label and color included) via pickBinding's fixed key order;
+ * assumes unique codes, which validateSet enforces.
+ */
+export function sameBindings(a: Binding[], b: Binding[]): boolean {
+  if (a.length !== b.length) return false
+  const other = new Map(b.map((x) => [x.code, JSON.stringify(pickBinding(x))]))
+  return a.every((x) => other.get(x.code) === JSON.stringify(pickBinding(x)))
+}
 
 /** Hard errors across a whole set (duplicate keys). */
 export function validateSet(bindings: Binding[]): string[] {
